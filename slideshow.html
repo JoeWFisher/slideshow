@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Photo Slideshow</title>
-<script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -61,7 +60,7 @@ input::placeholder { color:#444; }
 .slide-wrap img {
   flex:1; min-width:0;
   height:100%;
-  object-fit:contain;
+  object-fit:cover;
   display:block;
 }
 
@@ -186,10 +185,12 @@ input::placeholder { color:#444; }
   <div id="slide-b" class="slide-wrap"></div>
   <div id="progress"></div>
 
-  <!-- Location / date pills (always visible) -->
+  <!-- Date pills — shown per photo, side by side for portrait pairs -->
   <div id="info-bar">
-    <div class="info-pill" id="pill-location"></div>
-    <div class="info-pill" id="pill-date"></div>
+    <div id="info-row" style="display:flex;gap:8px;align-items:flex-end;justify-content:center;">
+      <div class="info-pill" id="pill-date-0"></div>
+      <div class="info-pill" id="pill-date-1"></div>
+    </div>
   </div>
 
   <div id="overlay">
@@ -449,8 +450,8 @@ function startShow() {
   a.style.opacity = '1'; a.style.zIndex = '2';
   b.style.opacity = '0'; b.style.zIndex = '1';
   document.getElementById('play-btn').innerHTML = '&#9208;';
-  document.getElementById('pill-location').classList.remove('visible');
-  document.getElementById('pill-date').classList.remove('visible');
+  document.getElementById('pill-date-0').classList.remove('visible');
+  document.getElementById('pill-date-1').classList.remove('visible');
   showScreen('show-screen');
   goTo(0);
   scheduleNext();
@@ -506,8 +507,13 @@ function goTo(i) {
 
   document.getElementById('counter').textContent = (slideIdx + 1) + ' / ' + slides.length;
   startProgress();
-  updateInfo(slide.indices[0]); // show info for first photo in slide
-  fetchInfo(slide.indices[0]);
+
+  // Fetch and display info for all photos in this slide
+  var indices = slide.indices;
+  for (var k = 0; k < indices.length; k++) {
+    fetchInfo(indices[k]);
+  }
+  updateInfo(indices);
   // Prefetch next slide's blobs
   var nxt = slides[(slideIdx + 1) % slides.length];
   for (var j = 0; j < nxt.indices.length; j++) {
@@ -581,56 +587,56 @@ function setupGestures() {
 // LOCATION & DATE
 // ──────────────────────────────────────────
 
-function fetchInfo(itemIdx) {
-  if (locationCache[itemIdx] !== undefined) { updateInfo(itemIdx); return; }
-  locationCache[itemIdx] = { location: null, date: null };
+// ──────────────────────────────────────────
+// INFO DISPLAY (date per photo)
+// ──────────────────────────────────────────
 
-  // Extract date from API metadata immediately
-  var t = items[itemIdx] && items[itemIdx].createTime;
+function fetchInfo(itemIdx) {
+  if (locationCache[itemIdx] !== undefined) return;
+  var entry = { date: null };
+
+  var item = items[itemIdx];
+  // Date from API createTime
+  var t = item && item.createTime;
   if (t) {
-    locationCache[itemIdx].date = new Date(t).toLocaleDateString('en-GB', {
+    entry.date = new Date(t).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'long', year: 'numeric'
     });
   }
-  if (itemIdx === slides[slideIdx].indices[0]) updateInfo(itemIdx);
+  locationCache[itemIdx] = entry;
 
-  // Try GPS from EXIF on the blob
-  var blobUrl = blobUrls[itemIdx];
-  if (!blobUrl || typeof exifr === 'undefined') return;
-
-  exifr.gps(blobUrl).then(function(gps) {
-    if (!gps || !gps.latitude || !gps.longitude) return;
-    return fetch(
-      'https://nominatim.openstreetmap.org/reverse?lat=' + gps.latitude + '&lon=' + gps.longitude + '&format=json',
-      { headers: { 'Accept-Language': 'en-GB' } }
-    ).then(function(r) { return r.json(); }).then(function(d) {
-      var a = d.address || {};
-      var place   = a.city || a.town || a.village || a.county || a.state || '';
-      var country = a.country || '';
-      var loc = [place, country].filter(Boolean).join(', ');
-      if (loc) {
-        locationCache[itemIdx].location = loc;
-        if (itemIdx === slides[slideIdx].indices[0]) updateInfo(itemIdx);
-      }
-    });
-  }).catch(function() {});
+  // Refresh display if this item is on the current slide
+  var cur = slides[slideIdx] ? slides[slideIdx].indices : [];
+  for (var i = 0; i < cur.length; i++) {
+    if (cur[i] === itemIdx) { updateInfo(slides[slideIdx].indices); break; }
+  }
 }
 
-function updateInfo(itemIdx) {
-  var info = locationCache[itemIdx] || {};
-  var locEl  = document.getElementById('pill-location');
-  var dateEl = document.getElementById('pill-date');
-  if (info.location) {
-    locEl.textContent = '\uD83D\uDCCD ' + info.location;
-    locEl.classList.add('visible');
+function updateInfo(indices) {
+  var p0 = document.getElementById('pill-date-0');
+  var p1 = document.getElementById('pill-date-1');
+
+  // First photo
+  var info0 = locationCache[indices[0]] || {};
+  if (info0.date) {
+    p0.textContent = '\uD83D\uDCC5 ' + info0.date;
+    p0.classList.add('visible');
   } else {
-    locEl.classList.remove('visible');
+    p0.classList.remove('visible');
   }
-  if (info.date) {
-    dateEl.textContent = '\uD83D\uDCC5 ' + info.date;
-    dateEl.classList.add('visible');
+
+  // Second photo (portrait pair only)
+  if (indices.length > 1) {
+    var info1 = locationCache[indices[1]] || {};
+    if (info1.date) {
+      p1.textContent = '\uD83D\uDCC5 ' + info1.date;
+      p1.classList.add('visible');
+    } else {
+      p1.classList.remove('visible');
+    }
   } else {
-    dateEl.classList.remove('visible');
+    p1.classList.remove('visible');
+    p1.textContent = '';
   }
 }
 
@@ -649,8 +655,6 @@ function getBlobUrl(itemIdx) {
   .then(function(blob) {
     var objUrl = URL.createObjectURL(blob);
     blobUrls[itemIdx] = objUrl;
-    // Try GPS extraction after blob is ready
-    fetchInfo(itemIdx);
     return objUrl;
   });
 }
