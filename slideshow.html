@@ -4,67 +4,133 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Photo Slideshow</title>
+<script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 :root { --bg:#0d0d0d; --card:#181818; --border:#282828; --text:#f0f0f0; --muted:#666; }
 body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; user-select:none; }
 
+/* ── Setup screens ── */
 .screen { display:none; min-height:100vh; flex-direction:column; align-items:center; justify-content:center; padding:32px; gap:20px; }
 .screen.active { display:flex; }
-
 h1 { font-size:22px; font-weight:300; letter-spacing:-0.3px; }
 h2 { font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:12px; }
-
 .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; width:100%; max-width:480px; }
 .card p { font-size:13px; color:var(--muted); line-height:1.65; margin-bottom:14px; }
 .card p:last-child { margin-bottom:0; }
 .card p strong { color:#aaa; }
 .card p a { color:#6a9fd8; text-decoration:none; }
-
 .steps { list-style:none; counter-reset:s; }
 .steps li { counter-increment:s; font-size:13px; color:#999; line-height:1.6; padding:10px 0 10px 30px; position:relative; border-bottom:1px solid var(--border); }
 .steps li:last-child { border-bottom:none; }
 .steps li::before { content:counter(s); position:absolute; left:0; top:11px; width:18px; height:18px; background:var(--border); border-radius:50%; font-size:11px; display:flex; align-items:center; justify-content:center; color:var(--muted); }
 .steps li strong { color:var(--text); }
 .steps li code { font-family:monospace; background:#222; padding:1px 5px; border-radius:4px; font-size:12px; color:#aaa; word-break:break-all; }
-
 .field { display:flex; flex-direction:column; gap:8px; }
 .field label { font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--text); font-family:inherit; font-size:13px; outline:none; transition:border-color .2s; }
+input[type=text],input[type=password] { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--text); font-family:inherit; font-size:13px; outline:none; transition:border-color .2s; }
 input:focus { border-color:#444; }
 input::placeholder { color:#444; }
-
 .btn { width:100%; padding:13px; background:#fff; color:#000; border:none; border-radius:10px; font-family:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:opacity .15s; }
 .btn:active { opacity:.75; }
 .btn:disabled { opacity:.25; cursor:default; }
 .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--muted); padding:10px 18px; border-radius:10px; font-family:inherit; font-size:13px; cursor:pointer; width:auto; }
 .btn-ghost:active { border-color:#555; color:var(--text); }
-
 .msg { font-size:13px; color:var(--muted); text-align:center; min-height:18px; }
 .msg.err { color:#d06060; }
-
 .spinner { width:28px; height:28px; border:2px solid var(--border); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-/* Slideshow */
-#show-screen { display:none; position:fixed; inset:0; background:#000; padding:0; gap:0; min-height:unset; }
+/* ── Slideshow ── */
+#show-screen { display:none; position:fixed; inset:0; background:#000; }
 #show-screen.active { display:block; }
-.slide-img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transition:opacity .7s ease; }
-#img-a { opacity:1; z-index:2; }
-#img-b { opacity:0; z-index:1; }
+
+/* Two slide containers that crossfade */
+.slide-wrap {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:opacity .7s ease;
+  gap:4px;
+  padding:4px;
+}
+#slide-a { opacity:1; z-index:2; }
+#slide-b { opacity:0; z-index:1; }
+
+/* Images inside slide containers */
+.slide-wrap img {
+  flex:1; min-width:0;
+  height:100%;
+  object-fit:contain;
+  display:block;
+}
+
+/* Overlay */
 #overlay { position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; justify-content:space-between; opacity:0; transition:opacity .25s; pointer-events:none; }
 #overlay.visible { opacity:1; pointer-events:all; }
 #top-bar { padding:20px 24px; background:linear-gradient(rgba(0,0,0,.55),transparent); display:flex; justify-content:space-between; align-items:center; }
 #counter { font-size:13px; color:rgba(255,255,255,.4); }
-.show-btn { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff; border-radius:20px; padding:7px 16px; font-family:inherit; font-size:13px; cursor:pointer; }
+.show-btn { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff; border-radius:20px; padding:7px 16px; font-family:inherit; font-size:13px; cursor:pointer; white-space:nowrap; }
 .show-btn:active { background:rgba(255,255,255,.2); }
 #bottom-bar { padding:20px 24px 40px; background:linear-gradient(transparent,rgba(0,0,0,.55)); display:flex; justify-content:center; align-items:center; gap:20px; }
 .ctrl { width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff; font-size:22px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; font-family:inherit; }
 .ctrl:active { background:rgba(255,255,255,.25); }
 #play-btn { font-size:17px; }
-#location { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:6; background:rgba(0,0,0,.45); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:6px 14px; font-size:13px; color:rgba(255,255,255,.85); white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis; opacity:0; transition:opacity .4s; pointer-events:none; }
+
+/* Location + date pill */
+#info-bar {
+  position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
+  z-index:6;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  pointer-events:none;
+}
+.info-pill {
+  background:rgba(0,0,0,.5);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:20px; padding:5px 14px;
+  font-size:13px; color:rgba(255,255,255,.85);
+  white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis;
+  opacity:0; transition:opacity .4s;
+}
+.info-pill.visible { opacity:1; }
+
+/* Progress bar */
 #progress { position:absolute; bottom:0; left:0; height:2px; background:rgba(255,255,255,.35); z-index:5; width:0; }
+
+/* ── PIN lock screen ── */
+#lock-screen {
+  display:none; position:fixed; inset:0; z-index:50;
+  background:rgba(0,0,0,.92);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  flex-direction:column; align-items:center; justify-content:center; gap:28px;
+}
+#lock-screen.active { display:flex; }
+#lock-title { font-size:18px; font-weight:300; color:var(--text); }
+#lock-dots { display:flex; gap:14px; }
+.lock-dot { width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,.4); transition:background .15s; }
+.lock-dot.filled { background:#fff; border-color:#fff; }
+#lock-pad { display:grid; grid-template-columns:repeat(3,72px); gap:12px; }
+.pad-btn {
+  width:72px; height:72px; border-radius:50%;
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15);
+  color:#fff; font-size:22px; font-family:inherit;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.pad-btn:active { background:rgba(255,255,255,.25); }
+.pad-btn.wide { border-radius:36px; grid-column:span 2; width:100%; padding:0 20px; font-size:14px; justify-content:center; }
+#lock-msg { font-size:13px; color:#d06060; min-height:18px; }
+
+/* ── PIN setup modal ── */
+#pin-modal {
+  display:none; position:fixed; inset:0; z-index:60;
+  background:rgba(0,0,0,.85);
+  align-items:center; justify-content:center;
+}
+#pin-modal.active { display:flex; }
+#pin-modal-inner { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:28px; width:300px; display:flex; flex-direction:column; gap:16px; align-items:center; }
+#pin-modal h2 { font-size:16px; font-weight:400; color:var(--text); margin:0; }
+#pin-modal p  { font-size:13px; color:var(--muted); text-align:center; margin:0; }
 </style>
 </head>
 <body>
@@ -116,16 +182,22 @@ input::placeholder { color:#444; }
 
 <!-- SCREEN 3: Slideshow -->
 <div class="screen" id="show-screen">
-  <img id="img-a" class="slide-img" alt="">
-  <img id="img-b" class="slide-img" alt="">
+  <div id="slide-a" class="slide-wrap"></div>
+  <div id="slide-b" class="slide-wrap"></div>
   <div id="progress"></div>
-  <div id="location"></div>
+
+  <!-- Location / date pills (always visible) -->
+  <div id="info-bar">
+    <div class="info-pill" id="pill-location"></div>
+    <div class="info-pill" id="pill-date"></div>
+  </div>
+
   <div id="overlay">
     <div id="top-bar">
       <span id="counter"></span>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
         <button class="show-btn" onclick="pickAgain()">Pick new photos</button>
-        <button class="show-btn" onclick="debugInfo()">Debug</button>
+        <button class="show-btn" onclick="openLockSetup()">&#128274; Lock</button>
         <button class="show-btn" onclick="reset()">Sign out</button>
       </div>
     </div>
@@ -137,15 +209,55 @@ input::placeholder { color:#444; }
   </div>
 </div>
 
+<!-- PIN lock screen -->
+<div id="lock-screen">
+  <div id="lock-title">Slideshow locked</div>
+  <div id="lock-dots">
+    <div class="lock-dot" id="d0"></div>
+    <div class="lock-dot" id="d1"></div>
+    <div class="lock-dot" id="d2"></div>
+    <div class="lock-dot" id="d3"></div>
+  </div>
+  <div id="lock-pad">
+    <button class="pad-btn" onclick="padPress('1')">1</button>
+    <button class="pad-btn" onclick="padPress('2')">2</button>
+    <button class="pad-btn" onclick="padPress('3')">3</button>
+    <button class="pad-btn" onclick="padPress('4')">4</button>
+    <button class="pad-btn" onclick="padPress('5')">5</button>
+    <button class="pad-btn" onclick="padPress('6')">6</button>
+    <button class="pad-btn" onclick="padPress('7')">7</button>
+    <button class="pad-btn" onclick="padPress('8')">8</button>
+    <button class="pad-btn" onclick="padPress('9')">9</button>
+    <button class="pad-btn" onclick="padPress('back')">&#9003;</button>
+    <button class="pad-btn" onclick="padPress('0')">0</button>
+    <div></div>
+  </div>
+  <div id="lock-msg"></div>
+</div>
+
+<!-- PIN setup modal -->
+<div id="pin-modal">
+  <div id="pin-modal-inner">
+    <h2 id="pin-modal-title">Set lock PIN</h2>
+    <p id="pin-modal-desc">Enter a 4-digit PIN to lock the slideshow.</p>
+    <div class="field" style="width:100%;">
+      <input id="pin-input" type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="4-digit PIN" style="text-align:center;font-size:20px;letter-spacing:8px;">
+    </div>
+    <div style="display:flex;gap:10px;width:100%;">
+      <button class="btn-ghost" style="flex:1;" onclick="closePinModal()">Cancel</button>
+      <button class="btn" style="flex:2;margin-top:0;" onclick="confirmPin()">Confirm</button>
+    </div>
+    <div class="msg err" id="pin-modal-msg"></div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
 // ── Constants ──
-var PICKER_BASE = 'https://photospicker.googleapis.com/v1';
-var SCOPE       = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
-var DURATION    = 6000;
-
-// Redirect URI = this page's URL. Must match exactly what's in Google Cloud Console.
+var PICKER_BASE  = 'https://photospicker.googleapis.com/v1';
+var SCOPE        = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
+var DURATION     = 6000;
 var REDIRECT_URI = window.location.origin + window.location.pathname;
 
 function qrUrl(url) {
@@ -157,32 +269,36 @@ var cfg = loadCfg();
 function loadCfg() {
   try { return JSON.parse(localStorage.getItem('ps_cfg') || '{}'); } catch (e) { return {}; }
 }
-function saveCfg() {
-  localStorage.setItem('ps_cfg', JSON.stringify(cfg));
-}
+function saveCfg() { localStorage.setItem('ps_cfg', JSON.stringify(cfg)); }
 
 // ── Runtime state ──
-var items        = [];
-var blobUrls     = [];
-var idx          = 0;
-var playing      = true;
-var front        = 'a';
-var timer        = null;
-var hideTimer    = null;
-var pollTimer    = null;
-var locationCache = {};
+var items         = [];   // raw API items
+var slides        = [];   // [{indices:[i]} or {indices:[i,j]}]
+var blobUrls      = {};   // item index → blob URL
+var locationCache = {};   // item index → {location:str|null, date:str|null}
+var slideIdx      = 0;
+var front         = 'a';
+var playing       = true;
+var timer         = null;
+var hideTimer     = null;
+var pollTimer     = null;
 var gesturesReady = false;
+var locked        = false;
+var pinEntry      = '';
+var pinSetupStep  = 0;    // 0=set, 1=confirm
+var pinFirst      = '';
 
 // ── Screen routing ──
 function showScreen(id) {
   var screens = document.querySelectorAll('.screen');
-  for (var i = 0; i < screens.length; i++) {
-    screens[i].classList.remove('active');
-  }
+  for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
   document.getElementById(id).classList.add('active');
 }
 
-// ── STEP 1: Start OAuth (redirect current tab) ──
+// ──────────────────────────────────────────
+// AUTH
+// ──────────────────────────────────────────
+
 function startAuth() {
   var clientId     = document.getElementById('inp-id').value.trim();
   var clientSecret = document.getElementById('inp-secret').value.trim();
@@ -190,30 +306,24 @@ function startAuth() {
     setMsg('setup-msg', 'Please enter both Client ID and Client Secret', 'err');
     return;
   }
-  cfg.clientId     = clientId;
-  cfg.clientSecret = clientSecret;
-  saveCfg();
+  cfg.clientId = clientId; cfg.clientSecret = clientSecret; saveCfg();
   setMsg('setup-msg', '');
-
-  // Generate PKCE verifier + challenge
   var verifier = generateVerifier();
   sessionStorage.setItem('pkce_verifier', verifier);
-
   generateChallenge(verifier).then(function(challenge) {
-    var params = new URLSearchParams();
-    params.set('client_id',             clientId);
-    params.set('redirect_uri',          REDIRECT_URI);
-    params.set('response_type',         'code');
-    params.set('scope',                 SCOPE);
-    params.set('access_type',           'offline');
-    params.set('code_challenge',        challenge);
-    params.set('code_challenge_method', 'S256');
-    params.set('prompt',                'consent');
-    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    var p = new URLSearchParams();
+    p.set('client_id',             clientId);
+    p.set('redirect_uri',          REDIRECT_URI);
+    p.set('response_type',         'code');
+    p.set('scope',                 SCOPE);
+    p.set('access_type',           'offline');
+    p.set('code_challenge',        challenge);
+    p.set('code_challenge_method', 'S256');
+    p.set('prompt',                'consent');
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
   });
 }
 
-// ── STEP 2: Exchange auth code for token ──
 function exchangeCode(code, verifier) {
   var body = new URLSearchParams();
   body.set('client_id',     cfg.clientId);
@@ -222,21 +332,14 @@ function exchangeCode(code, verifier) {
   body.set('grant_type',    'authorization_code');
   body.set('code',          code);
   body.set('code_verifier', verifier);
-
   fetch('https://oauth2.googleapis.com/token', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    body.toString()
+    method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString()
   })
-  .then(function(res) { return res.json(); })
+  .then(function(r) { return r.json(); })
   .then(function(data) {
-    if (!data.access_token) {
-      throw new Error(data.error_description || data.error || 'Token exchange failed');
-    }
-    cfg.accessToken  = data.access_token;
-    cfg.refreshToken = data.refresh_token;
-    delete cfg.sessionId;
-    saveCfg();
+    if (!data.access_token) throw new Error(data.error_description || data.error || 'Token exchange failed');
+    cfg.accessToken = data.access_token; cfg.refreshToken = data.refresh_token;
+    delete cfg.sessionId; saveCfg();
     sessionStorage.removeItem('pkce_verifier');
     createPickerSession();
   })
@@ -246,220 +349,204 @@ function exchangeCode(code, verifier) {
   });
 }
 
-// ── STEP 3: Create Picker session ──
+// ──────────────────────────────────────────
+// PICKER SESSION
+// ──────────────────────────────────────────
+
 function createPickerSession() {
   pickerFetch('POST', '/sessions', {})
-  .then(function(res) { return res.json(); })
+  .then(function(r) { return r.json(); })
   .then(function(data) {
     if (data.error) throw new Error(data.error.message);
-    cfg.sessionId = data.id;
-    saveCfg();
+    cfg.sessionId = data.id; saveCfg();
     document.getElementById('picker-qr').src              = qrUrl(data.pickerUri);
     document.getElementById('picker-url-text').textContent = data.pickerUri;
     showScreen('picker-screen');
-    var interval = (data.pollingConfig && data.pollingConfig.pollInterval)
-      ? parseFloat(data.pollingConfig.pollInterval) * 1000
-      : 5000;
-    pollForSelection(interval);
+    var iv = (data.pollingConfig && data.pollingConfig.pollInterval)
+      ? parseFloat(data.pollingConfig.pollInterval) * 1000 : 5000;
+    pollForSelection(iv);
   })
-  .catch(function(e) {
-    setMsg('setup-msg', 'Session error: ' + e.message, 'err');
-    showScreen('setup-screen');
-  });
+  .catch(function(e) { setMsg('setup-msg', 'Session error: ' + e.message, 'err'); showScreen('setup-screen'); });
 }
 
-// ── STEP 4: Poll until user picks photos ──
 function pollForSelection(interval) {
   clearTimeout(pollTimer);
   pickerFetch('GET', '/sessions/' + cfg.sessionId)
-  .then(function(res) { return res.json(); })
+  .then(function(r) { return r.json(); })
   .then(function(data) {
     if (data.error) throw new Error(data.error.message);
-    if (data.mediaItemsSet) {
-      fetchPickedItems();
-      return;
-    }
-    var next = (data.pollingConfig && data.pollingConfig.pollInterval)
-      ? parseFloat(data.pollingConfig.pollInterval) * 1000
-      : interval;
-    pollTimer = setTimeout(function() { pollForSelection(next); }, next);
+    if (data.mediaItemsSet) { fetchPickedItems(); return; }
+    var nxt = (data.pollingConfig && data.pollingConfig.pollInterval)
+      ? parseFloat(data.pollingConfig.pollInterval) * 1000 : interval;
+    pollTimer = setTimeout(function() { pollForSelection(nxt); }, nxt);
   })
   .catch(function() {
     refreshToken().then(function(ok) {
-      if (ok) {
-        pollTimer = setTimeout(function() { pollForSelection(interval); }, 3000);
-      } else {
-        setMsg('setup-msg', 'Session expired. Please sign in again.', 'err');
-        showScreen('setup-screen');
-      }
+      if (ok) pollTimer = setTimeout(function() { pollForSelection(interval); }, 3000);
+      else { setMsg('setup-msg', 'Session expired. Please sign in again.', 'err'); showScreen('setup-screen'); }
     });
   });
 }
 
-// ── STEP 5: Load picked media items ──
 function fetchPickedItems() {
   var all = [];
-  function fetchPage(pageToken) {
-    var qs = 'sessionId=' + cfg.sessionId + '&pageSize=100';
-    if (pageToken) qs += '&pageToken=' + pageToken;
+  function fetchPage(pt) {
+    var qs = 'sessionId=' + cfg.sessionId + '&pageSize=100' + (pt ? '&pageToken=' + pt : '');
     pickerFetch('GET', '/mediaItems?' + qs)
-    .then(function(res) { return res.json(); })
+    .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.error) throw new Error(data.error.message);
       all = all.concat(data.mediaItems || []);
-      if (data.nextPageToken) {
-        fetchPage(data.nextPageToken);
-      } else {
-        if (!all.length) throw new Error('No photos selected.');
-        items = all;
-        startShow();
+      if (data.nextPageToken) { fetchPage(data.nextPageToken); return; }
+      if (!all.length) throw new Error('No photos selected.');
+      items = all;
+      // Shuffle items before grouping into slides
+      for (var s = items.length - 1; s > 0; s--) {
+        var r = Math.floor(Math.random() * (s + 1));
+        var tmp = items[s]; items[s] = items[r]; items[r] = tmp;
       }
+      buildSlides();
+      startShow();
     })
-    .catch(function(e) {
-      setMsg('setup-msg', 'Error loading photos: ' + e.message, 'err');
-      showScreen('setup-screen');
-    });
+    .catch(function(e) { setMsg('setup-msg', 'Error: ' + e.message, 'err'); showScreen('setup-screen'); });
   }
   fetchPage('');
 }
 
-// ── Slideshow ──
-function startShow() {
-  for (var i = 0; i < blobUrls.length; i++) {
-    if (blobUrls[i]) URL.revokeObjectURL(blobUrls[i]);
-  }
-  blobUrls      = new Array(items.length).fill(null);
-  locationCache = {};
-  front   = 'a';
-  idx     = 0;
-  playing = true;
+// ──────────────────────────────────────────
+// SLIDE GROUPING — pair consecutive portraits
+// ──────────────────────────────────────────
 
-  var a = document.getElementById('img-a');
-  var b = document.getElementById('img-b');
+function isPortrait(item) {
+  var m = item.mediaFile && item.mediaFile.mediaFileMetadata;
+  if (!m) return false;
+  return parseInt(m.height, 10) > parseInt(m.width, 10);
+}
+
+function buildSlides() {
+  slides = [];
+  var i = 0;
+  while (i < items.length) {
+    if (isPortrait(items[i]) && i + 1 < items.length && isPortrait(items[i + 1])) {
+      slides.push({ indices: [i, i + 1] });
+      i += 2;
+    } else {
+      slides.push({ indices: [i] });
+      i += 1;
+    }
+  }
+}
+
+// ──────────────────────────────────────────
+// SLIDESHOW
+// ──────────────────────────────────────────
+
+function startShow() {
+  blobUrls = {}; locationCache = {};
+  front = 'a'; slideIdx = 0; playing = true;
+  var a = document.getElementById('slide-a');
+  var b = document.getElementById('slide-b');
   a.style.opacity = '1'; a.style.zIndex = '2';
   b.style.opacity = '0'; b.style.zIndex = '1';
   document.getElementById('play-btn').innerHTML = '&#9208;';
-  document.getElementById('location').style.opacity = '0';
-
+  document.getElementById('pill-location').classList.remove('visible');
+  document.getElementById('pill-date').classList.remove('visible');
   showScreen('show-screen');
   goTo(0);
   scheduleNext();
   showOverlay();
   setupGestures();
+  // Lock if PIN is set
+  if (cfg.pin) lockScreen();
 }
 
-function getBlobUrl(i) {
-  if (blobUrls[i]) return Promise.resolve(blobUrls[i]);
-  var url = items[i].mediaFile.baseUrl + '=w2048-h2048';
-  return fetch(url, { headers: { 'Authorization': 'Bearer ' + cfg.accessToken } })
-  .then(function(res) {
-    if (res.status === 401) {
-      return refreshToken().then(function(ok) {
-        if (!ok) throw new Error('auth');
-        return fetch(url, { headers: { 'Authorization': 'Bearer ' + cfg.accessToken } });
-      });
+// Build a slide container's contents from item indices
+function buildSlideContainer(el, indices) {
+  el.innerHTML = '';
+  for (var i = 0; i < indices.length; i++) {
+    var img = document.createElement('img');
+    img.alt = '';
+    // placeholder transparent src while loading
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI=';
+    img.dataset.idx = indices[i];
+    el.appendChild(img);
+  }
+}
+
+function fillSlideContainer(el, indices) {
+  return new Promise(function(resolve) {
+    var imgs   = el.querySelectorAll('img');
+    var loaded = 0;
+    for (var i = 0; i < indices.length; i++) {
+      (function(img, itemIdx) {
+        getBlobUrl(itemIdx).then(function(url) {
+          img.src = url;
+          loaded++;
+          if (loaded === indices.length) resolve();
+        }).catch(function() { loaded++; if (loaded === indices.length) resolve(); });
+      })(imgs[i], indices[i]);
     }
-    return res;
-  })
-  .then(function(res) {
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.blob();
-  })
-  .then(function(blob) {
-    blobUrls[i] = URL.createObjectURL(blob);
-    return blobUrls[i];
   });
 }
 
 function goTo(i) {
-  idx = ((i % items.length) + items.length) % items.length;
-
-  var frontEl = document.getElementById('img-' + front);
+  slideIdx = ((i % slides.length) + slides.length) % slides.length;
+  var slide   = slides[slideIdx];
   var back    = front === 'a' ? 'b' : 'a';
-  var backEl  = document.getElementById('img-' + back);
-  var capturedFront = front;
+  var frontEl = document.getElementById('slide-' + front);
+  var backEl  = document.getElementById('slide-' + back);
 
-  getBlobUrl(idx)
-  .then(function(url) {
-    backEl.onload = function() {
-      frontEl.style.opacity = '0'; frontEl.style.zIndex = '1';
-      backEl.style.opacity  = '1'; backEl.style.zIndex  = '2';
-      front = back;
-    };
-    backEl.src = url;
-  })
-  .catch(function(err) {
-    document.getElementById('counter').textContent =
-      'Error loading photo ' + (idx + 1) + ': ' + err.message;
-    setTimeout(function() { next(); }, 3000);
+  // Build structure in back container, then load images
+  buildSlideContainer(backEl, slide.indices);
+  fillSlideContainer(backEl, slide.indices).then(function() {
+    frontEl.style.opacity = '0'; frontEl.style.zIndex = '1';
+    backEl.style.opacity  = '1'; backEl.style.zIndex  = '2';
+    front = back;
   });
 
-  document.getElementById('counter').textContent = (idx + 1) + ' / ' + items.length;
+  document.getElementById('counter').textContent = (slideIdx + 1) + ' / ' + slides.length;
   startProgress();
-  updateLocation(idx);
-  fetchLocation(idx);
-
-  // Prefetch next
-  var nxt = (idx + 1) % items.length;
-  if (!blobUrls[nxt]) getBlobUrl(nxt).catch(function() {});
+  updateInfo(slide.indices[0]); // show info for first photo in slide
+  fetchInfo(slide.indices[0]);
+  // Prefetch next slide's blobs
+  var nxt = slides[(slideIdx + 1) % slides.length];
+  for (var j = 0; j < nxt.indices.length; j++) {
+    getBlobUrl(nxt.indices[j]);
+  }
 }
 
-function next() {
-  clearTimeout(timer);
-  goTo(idx + 1);
-  if (playing) scheduleNext();
-}
-
-function prev() {
-  clearTimeout(timer);
-  goTo(idx - 1);
-  if (playing) scheduleNext();
-}
+function next() { clearTimeout(timer); goTo(slideIdx + 1); if (playing) scheduleNext(); }
+function prev() { clearTimeout(timer); goTo(slideIdx - 1); if (playing) scheduleNext(); }
 
 function togglePlay() {
   playing = !playing;
   document.getElementById('play-btn').innerHTML = playing ? '&#9208;' : '&#9654;';
-  if (playing) {
-    scheduleNext();
-    startProgress();
-  } else {
-    clearTimeout(timer);
-    stopProgress();
-  }
+  if (playing) { scheduleNext(); startProgress(); }
+  else         { clearTimeout(timer); stopProgress(); }
 }
 
-function scheduleNext() {
-  clearTimeout(timer);
-  timer = setTimeout(next, DURATION);
-}
+function scheduleNext() { clearTimeout(timer); timer = setTimeout(next, DURATION); }
 
 function startProgress() {
   var bar = document.getElementById('progress');
-  bar.style.transition = 'none';
-  bar.style.width = '0%';
-  bar.offsetWidth; // force reflow
-  bar.style.transition = 'width ' + DURATION + 'ms linear';
-  bar.style.width = '100%';
+  bar.style.transition = 'none'; bar.style.width = '0%';
+  bar.offsetWidth; // reflow
+  bar.style.transition = 'width ' + DURATION + 'ms linear'; bar.style.width = '100%';
 }
 
 function stopProgress() {
   var bar = document.getElementById('progress');
-  bar.style.transition = 'none';
-  bar.style.width = '0%';
+  bar.style.transition = 'none'; bar.style.width = '0%';
 }
 
-function pickAgain() {
-  clearTimeout(timer);
-  createPickerSession();
-}
+function pickAgain() { clearTimeout(timer); createPickerSession(); }
 
-function debugInfo() {
-  var item = items[idx];
-  alert('Item ' + idx + ':\n' + (item ? JSON.stringify(item, null, 2) : 'none'));
-}
+// ──────────────────────────────────────────
+// OVERLAY
+// ──────────────────────────────────────────
 
-// ── Overlay ──
 function showOverlay() {
+  if (locked) return;
   document.getElementById('overlay').classList.add('visible');
   clearTimeout(hideTimer);
   hideTimer = setTimeout(function() {
@@ -467,18 +554,19 @@ function showOverlay() {
   }, 3000);
 }
 
-document.getElementById('show-screen').addEventListener('click', showOverlay);
+document.getElementById('show-screen').addEventListener('click', function() {
+  if (locked) { showLockScreen(); } else { showOverlay(); }
+});
 
 function setupGestures() {
-  if (gesturesReady) return;
-  gesturesReady = true;
+  if (gesturesReady) return; gesturesReady = true;
   var tx = 0, ty = 0;
   var el = document.getElementById('show-screen');
   el.addEventListener('touchstart', function(e) {
-    tx = e.touches[0].clientX;
-    ty = e.touches[0].clientY;
+    tx = e.touches[0].clientX; ty = e.touches[0].clientY;
   }, { passive: true });
   el.addEventListener('touchend', function(e) {
+    if (locked) { showLockScreen(); return; }
     var dx = e.changedTouches[0].clientX - tx;
     var dy = e.changedTouches[0].clientY - ty;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
@@ -489,27 +577,213 @@ function setupGestures() {
   }, { passive: true });
 }
 
-// ── Location (date from API metadata) ──
-function fetchLocation(i) {
-  if (locationCache[i] !== undefined) return;
-  locationCache[i] = null;
-  var t = items[i] && items[i].createTime;
+// ──────────────────────────────────────────
+// LOCATION & DATE
+// ──────────────────────────────────────────
+
+function fetchInfo(itemIdx) {
+  if (locationCache[itemIdx] !== undefined) { updateInfo(itemIdx); return; }
+  locationCache[itemIdx] = { location: null, date: null };
+
+  // Extract date from API metadata immediately
+  var t = items[itemIdx] && items[itemIdx].createTime;
   if (t) {
-    locationCache[i] = new Date(t).toLocaleDateString('en-GB', {
+    locationCache[itemIdx].date = new Date(t).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'long', year: 'numeric'
     });
   }
-  if (i === idx) updateLocation(i);
+  if (itemIdx === slides[slideIdx].indices[0]) updateInfo(itemIdx);
+
+  // Try GPS from EXIF on the blob
+  var blobUrl = blobUrls[itemIdx];
+  if (!blobUrl || typeof exifr === 'undefined') return;
+
+  exifr.gps(blobUrl).then(function(gps) {
+    if (!gps || !gps.latitude || !gps.longitude) return;
+    return fetch(
+      'https://nominatim.openstreetmap.org/reverse?lat=' + gps.latitude + '&lon=' + gps.longitude + '&format=json',
+      { headers: { 'Accept-Language': 'en-GB' } }
+    ).then(function(r) { return r.json(); }).then(function(d) {
+      var a = d.address || {};
+      var place   = a.city || a.town || a.village || a.county || a.state || '';
+      var country = a.country || '';
+      var loc = [place, country].filter(Boolean).join(', ');
+      if (loc) {
+        locationCache[itemIdx].location = loc;
+        if (itemIdx === slides[slideIdx].indices[0]) updateInfo(itemIdx);
+      }
+    });
+  }).catch(function() {});
 }
 
-function updateLocation(i) {
-  var el = document.getElementById('location');
-  var v  = locationCache[i];
-  el.textContent   = v ? '\uD83D\uDCC5 ' + v : '';
-  el.style.opacity = v ? '1' : '0';
+function updateInfo(itemIdx) {
+  var info = locationCache[itemIdx] || {};
+  var locEl  = document.getElementById('pill-location');
+  var dateEl = document.getElementById('pill-date');
+  if (info.location) {
+    locEl.textContent = '\uD83D\uDCCD ' + info.location;
+    locEl.classList.add('visible');
+  } else {
+    locEl.classList.remove('visible');
+  }
+  if (info.date) {
+    dateEl.textContent = '\uD83D\uDCC5 ' + info.date;
+    dateEl.classList.add('visible');
+  } else {
+    dateEl.classList.remove('visible');
+  }
 }
 
-// ── Token refresh ──
+// ──────────────────────────────────────────
+// BLOB FETCHING
+// ──────────────────────────────────────────
+
+function getBlobUrl(itemIdx) {
+  if (blobUrls[itemIdx]) return Promise.resolve(blobUrls[itemIdx]);
+  var url = items[itemIdx].mediaFile.baseUrl + '=w2048-h2048';
+  return fetchWithAuth(url)
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.blob();
+  })
+  .then(function(blob) {
+    var objUrl = URL.createObjectURL(blob);
+    blobUrls[itemIdx] = objUrl;
+    // Try GPS extraction after blob is ready
+    fetchInfo(itemIdx);
+    return objUrl;
+  });
+}
+
+function fetchWithAuth(url) {
+  return fetch(url, { headers: { 'Authorization': 'Bearer ' + cfg.accessToken } })
+  .then(function(r) {
+    if (r.status !== 401) return r;
+    return refreshToken().then(function(ok) {
+      if (!ok) return r;
+      return fetch(url, { headers: { 'Authorization': 'Bearer ' + cfg.accessToken } });
+    });
+  });
+}
+
+// ──────────────────────────────────────────
+// PIN LOCK
+// ──────────────────────────────────────────
+
+function lockScreen() {
+  locked = true;
+  document.getElementById('overlay').classList.remove('visible');
+  showLockScreen();
+}
+
+function showLockScreen() {
+  pinEntry = '';
+  updateDots();
+  document.getElementById('lock-msg').textContent = '';
+  document.getElementById('lock-screen').classList.add('active');
+}
+
+function padPress(val) {
+  if (val === 'back') {
+    pinEntry = pinEntry.slice(0, -1);
+    updateDots();
+    return;
+  }
+  if (pinEntry.length >= 4) return;
+  pinEntry += val;
+  updateDots();
+  if (pinEntry.length === 4) {
+    setTimeout(function() { checkPin(); }, 150);
+  }
+}
+
+function updateDots() {
+  for (var i = 0; i < 4; i++) {
+    var dot = document.getElementById('d' + i);
+    if (i < pinEntry.length) dot.classList.add('filled');
+    else dot.classList.remove('filled');
+  }
+}
+
+function checkPin() {
+  if (pinEntry === cfg.pin) {
+    locked = false;
+    document.getElementById('lock-screen').classList.remove('active');
+    pinEntry = '';
+    updateDots();
+  } else {
+    document.getElementById('lock-msg').textContent = 'Incorrect PIN';
+    pinEntry = '';
+    updateDots();
+  }
+}
+
+// PIN setup
+function openLockSetup() {
+  document.getElementById('overlay').classList.remove('visible');
+  if (cfg.pin) {
+    // Offer to change or remove
+    document.getElementById('pin-modal-title').textContent = 'Change or remove PIN';
+    document.getElementById('pin-modal-desc').textContent  = 'Enter a new 4-digit PIN, or clear the field and confirm to remove the lock.';
+  } else {
+    document.getElementById('pin-modal-title').textContent = 'Set lock PIN';
+    document.getElementById('pin-modal-desc').textContent  = 'Enter a 4-digit PIN to lock the slideshow.';
+  }
+  pinSetupStep = 0; pinFirst = '';
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-modal-msg').textContent = '';
+  document.getElementById('pin-modal').classList.add('active');
+  document.getElementById('pin-input').focus();
+}
+
+function closePinModal() {
+  document.getElementById('pin-modal').classList.remove('active');
+}
+
+function confirmPin() {
+  var val = document.getElementById('pin-input').value.trim();
+
+  // Remove lock if blank
+  if (val === '') {
+    cfg.pin = ''; saveCfg();
+    closePinModal();
+    return;
+  }
+
+  if (!/^\d{4}$/.test(val)) {
+    document.getElementById('pin-modal-msg').textContent = 'PIN must be exactly 4 digits';
+    return;
+  }
+
+  if (pinSetupStep === 0) {
+    pinFirst = val; pinSetupStep = 1;
+    document.getElementById('pin-modal-title').textContent = 'Confirm PIN';
+    document.getElementById('pin-modal-desc').textContent  = 'Enter the same PIN again to confirm.';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-modal-msg').textContent = '';
+    document.getElementById('pin-input').focus();
+    return;
+  }
+
+  if (val !== pinFirst) {
+    document.getElementById('pin-modal-msg').textContent = 'PINs do not match — try again';
+    pinSetupStep = 0; pinFirst = '';
+    document.getElementById('pin-modal-title').textContent = cfg.pin ? 'Change or remove PIN' : 'Set lock PIN';
+    document.getElementById('pin-modal-desc').textContent  = 'Enter a 4-digit PIN to lock the slideshow.';
+    document.getElementById('pin-input').value = '';
+    return;
+  }
+
+  cfg.pin = val; saveCfg();
+  closePinModal();
+  // Immediately lock
+  lockScreen();
+}
+
+// ──────────────────────────────────────────
+// TOKEN REFRESH & API HELPERS
+// ──────────────────────────────────────────
+
 function refreshToken() {
   if (!cfg.refreshToken) return Promise.resolve(false);
   var body = new URLSearchParams();
@@ -518,79 +792,65 @@ function refreshToken() {
   body.set('refresh_token', cfg.refreshToken);
   body.set('grant_type',    'refresh_token');
   return fetch('https://oauth2.googleapis.com/token', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    body.toString()
+    method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString()
   })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (!data.access_token) return false;
-    cfg.accessToken = data.access_token;
-    saveCfg();
-    return true;
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.access_token) return false;
+    cfg.accessToken = d.access_token; saveCfg(); return true;
   })
   .catch(function() { return false; });
 }
 
-// ── Picker API fetch ──
 function pickerFetch(method, path, body) {
-  var opts = {
-    method:  method,
-    headers: {
-      'Authorization': 'Bearer ' + cfg.accessToken,
-      'Content-Type':  'application/json'
-    }
-  };
+  var opts = { method: method, headers: {'Authorization':'Bearer ' + cfg.accessToken, 'Content-Type':'application/json'} };
   if (body !== undefined) opts.body = JSON.stringify(body);
-  return fetch(PICKER_BASE + path, opts)
-  .then(function(res) {
-    if (res.status === 401) {
-      return refreshToken().then(function(ok) {
-        if (ok) {
-          opts.headers['Authorization'] = 'Bearer ' + cfg.accessToken;
-          return fetch(PICKER_BASE + path, opts);
-        }
-        return res;
-      });
-    }
-    return res;
+  return fetch(PICKER_BASE + path, opts).then(function(r) {
+    if (r.status !== 401) return r;
+    return refreshToken().then(function(ok) {
+      if (ok) { opts.headers['Authorization'] = 'Bearer ' + cfg.accessToken; return fetch(PICKER_BASE + path, opts); }
+      return r;
+    });
   });
 }
 
-// ── Reset / sign out ──
+// ──────────────────────────────────────────
+// RESET
+// ──────────────────────────────────────────
+
 function reset() {
   clearTimeout(timer); clearTimeout(pollTimer); clearTimeout(hideTimer);
-  for (var i = 0; i < blobUrls.length; i++) {
-    if (blobUrls[i]) URL.revokeObjectURL(blobUrls[i]);
-  }
-  cfg = { clientId: cfg.clientId, clientSecret: cfg.clientSecret };
+  for (var k in blobUrls) { if (blobUrls[k]) URL.revokeObjectURL(blobUrls[k]); }
+  cfg = { clientId: cfg.clientId, clientSecret: cfg.clientSecret, pin: cfg.pin };
   saveCfg();
-  items = []; blobUrls = []; locationCache = {};
+  items = []; slides = []; blobUrls = {}; locationCache = {};
+  locked = false;
+  document.getElementById('lock-screen').classList.remove('active');
   document.getElementById('inp-id').value     = cfg.clientId     || '';
   document.getElementById('inp-secret').value = cfg.clientSecret || '';
   showScreen('setup-screen');
 }
 
-// ── PKCE ──
+// ──────────────────────────────────────────
+// PKCE + UTILS
+// ──────────────────────────────────────────
+
 function generateVerifier() {
   var arr = new Uint8Array(32);
   crypto.getRandomValues(arr);
-  return btoa(String.fromCharCode.apply(null, arr))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return btoa(String.fromCharCode.apply(null, arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 }
 
 function generateChallenge(verifier) {
   var data = new TextEncoder().encode(verifier);
   return crypto.subtle.digest('SHA-256', data).then(function(digest) {
-    return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   });
 }
 
 function copyUri() {
-  var el = document.getElementById('uri-display');
+  var span = document.getElementById('uri-display').nextElementSibling;
   navigator.clipboard.writeText(REDIRECT_URI).then(function() {
-    var span = el.nextElementSibling;
     span.textContent = 'Copied!';
     setTimeout(function() { span.textContent = 'Copy'; }, 1500);
   });
@@ -603,29 +863,24 @@ function setMsg(id, msg, type) {
   el.className   = 'msg' + (type ? ' ' + type : '');
 }
 
-// ── Init ──
-window.addEventListener('load', function() {
-  // Show current redirect URI in setup instructions
-  var uriEl = document.getElementById('uri-display');
-  if (uriEl) uriEl.textContent = REDIRECT_URI;
+// ──────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────
 
-  // Restore saved credentials
+window.addEventListener('load', function() {
+  document.getElementById('uri-display').textContent = REDIRECT_URI;
   if (cfg.clientId)     document.getElementById('inp-id').value     = cfg.clientId;
   if (cfg.clientSecret) document.getElementById('inp-secret').value = cfg.clientSecret;
 
-  // Check if Google just redirected back with ?code=
   var params   = new URLSearchParams(window.location.search);
   var code     = params.get('code');
   var verifier = sessionStorage.getItem('pkce_verifier');
-
   if (code && verifier && cfg.clientId && cfg.clientSecret) {
-    // Remove code from URL bar
     window.history.replaceState({}, '', window.location.pathname);
     exchangeCode(code, verifier);
     return;
   }
 
-  // Resume a session that was already polling
   if (cfg.accessToken && cfg.sessionId) {
     showScreen('picker-screen');
     pollForSelection(5000);
