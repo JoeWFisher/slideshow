@@ -239,8 +239,8 @@ async function startAuth() {
     prompt:                'consent'
   });
 
-  window.open('https://accounts.google.com/o/oauth2/v2/auth?' + params, '_blank');
-  showScreen('code-screen');
+  // Navigate current tab to Google auth — avoids popup blockers on tablet
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params;
 }
 
 // ── STEP 2: Extract code from pasted URL and exchange for token ──
