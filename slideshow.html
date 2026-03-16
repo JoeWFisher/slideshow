@@ -247,27 +247,22 @@ async function startAuth() {
 async function handleRedirect() {
   const raw = document.getElementById('inp-code').value.trim();
   let code;
-
   try {
-    // Accept either full URL or just the code value
-    if (raw.startsWith('http')) {
-      const u = new URL(raw);
-      code = u.searchParams.get('code');
-      if (!code) throw new Error();
-    } else {
-      code = raw;
-    }
+    code = raw.startsWith('http') ? new URL(raw).searchParams.get('code') : raw;
+    if (!code) throw new Error();
   } catch {
     setMsg('code-msg', 'Could not read a code from that URL. Please copy the full address bar URL.', 'err');
     return;
   }
-
   const verifier = sessionStorage.getItem('pkce_verifier');
   if (!verifier) { setMsg('code-msg', 'Session expired. Please go back and try again.', 'err'); return; }
-
   setMsg('code-msg', 'Signing in…');
   document.querySelector('#code-screen .btn').disabled = true;
+  await exchangeCode(code, verifier);
+  document.querySelector('#code-screen .btn').disabled = false;
+}
 
+async function exchangeCode(code, verifier) {
   try {
     const res = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -289,12 +284,9 @@ async function handleRedirect() {
     delete cfg.sessionId;
     save();
     sessionStorage.removeItem('pkce_verifier');
-
     createPickerSession();
-
   } catch (e) {
     setMsg('code-msg', 'Error: ' + e.message, 'err');
-    document.querySelector('#code-screen .btn').disabled = false;
   }
 }
 
@@ -589,6 +581,22 @@ function copyUri() {
 
 // ── Restore on load ──
 window.addEventListener('load', () => {
+  // Auto-detect OAuth redirect — Google appends ?code=... to the URL
+  const params = new URLSearchParams(window.location.search);
+  const code   = params.get('code');
+  if (code) {
+    // Clean the code from the URL bar without reloading
+    window.history.replaceState({}, '', window.location.pathname);
+    const verifier = sessionStorage.getItem('pkce_verifier');
+    if (verifier && cfg.clientId && cfg.clientSecret) {
+      showScreen('code-screen');
+      document.getElementById('inp-code').value = window.location.origin + window.location.pathname + '?code=' + code;
+      // Auto-exchange — no need for user to paste anything
+      exchangeCode(code, verifier);
+      return;
+    }
+  }
+
   // Show the current redirect URI so user knows exactly what to register
   const uriEl = document.getElementById('uri-display');
   if (uriEl) uriEl.textContent = REDIRECT_URI;
@@ -604,6 +612,12 @@ window.addEventListener('load', () => {
 
   if (cfg.clientId)     document.getElementById('inp-id').value     = cfg.clientId;
   if (cfg.clientSecret) document.getElementById('inp-secret').value = cfg.clientSecret;
+
+  if (cfg.accessToken && cfg.sessionId) {
+    showScreen('picker-screen');
+    pollForSelection(5000);
+  }
+});
   if (cfg.accessToken && cfg.sessionId) {
     showScreen('picker-screen');
     pollForSelection(5000);
