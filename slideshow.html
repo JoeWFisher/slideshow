@@ -97,6 +97,17 @@ input::placeholder { color:#444; }
 /* Progress bar */
 #progress { position:absolute; bottom:0; left:0; height:2px; background:rgba(255,255,255,.35); z-index:5; width:0; }
 
+/* Ken Burns */
+@keyframes kenburns-1 { 0%{transform:scale(1)    translate(0%,0%)}    100%{transform:scale(1.12) translate(-2%,-1%)} }
+@keyframes kenburns-2 { 0%{transform:scale(1.08) translate(-1%,1%)}  100%{transform:scale(1)    translate(1%,-1%)}   }
+@keyframes kenburns-3 { 0%{transform:scale(1)    translate(1%,-1%)}  100%{transform:scale(1.1)  translate(-1%, 1%)}  }
+@keyframes kenburns-4 { 0%{transform:scale(1.06) translate(0%,1%)}   100%{transform:scale(1)    translate(0%, -1%)}  }
+.kb { animation-timing-function:linear; animation-fill-mode:forwards; transform-origin:center center; }
+
+/* Now-playing mode: hide all chrome */
+#show-screen.now-playing #counter,
+#show-screen.now-playing #progress { display:none; }
+
 /* ── PIN lock screen ── */
 #lock-screen {
   display:none; position:fixed; inset:0; z-index:50;
@@ -195,7 +206,15 @@ input::placeholder { color:#444; }
 
   <div id="overlay">
     <div id="top-bar">
-      <span id="counter"></span>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="counter"></span>
+        <select id="speed-select" onchange="changeSpeed(this.value)" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:5px 10px;font-family:inherit;font-size:13px;cursor:pointer;outline:none;">
+          <option value="3000">3s</option>
+          <option value="6000" selected>6s</option>
+          <option value="10000">10s</option>
+          <option value="20000">20s</option>
+        </select>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
         <button class="show-btn" onclick="pickAgain()">Pick new photos</button>
         <button class="show-btn" onclick="openLockSetup()">&#128274; Lock</button>
@@ -258,8 +277,9 @@ input::placeholder { color:#444; }
 // ── Constants ──
 var PICKER_BASE  = 'https://photospicker.googleapis.com/v1';
 var SCOPE        = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
-var DURATION     = 6000;
 var REDIRECT_URI = window.location.origin + window.location.pathname;
+
+function getDuration() { return cfg.speed || 6000; }
 
 function qrUrl(url) {
   return 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
@@ -276,7 +296,7 @@ function saveCfg() { localStorage.setItem('ps_cfg', JSON.stringify(cfg)); }
 var items         = [];   // raw API items
 var slides        = [];   // [{indices:[i]} or {indices:[i,j]}]
 var blobUrls      = {};   // item index → blob URL
-var locationCache = {};   // item index → {location:str|null, date:str|null}
+var locationCache = {};   // item index → {date:str|null}
 var slideIdx      = 0;
 var front         = 'a';
 var playing       = true;
@@ -285,9 +305,13 @@ var hideTimer     = null;
 var pollTimer     = null;
 var gesturesReady = false;
 var locked        = false;
+var nowPlaying    = false;
+var wakeLock      = null;
 var pinEntry      = '';
 var pinSetupStep  = 0;    // 0=set, 1=confirm
 var pinFirst      = '';
+var kbVariants    = ['kenburns-1','kenburns-2','kenburns-3','kenburns-4'];
+var kbIdx         = 0;
 
 // ── Screen routing ──
 function showScreen(id) {
@@ -444,7 +468,8 @@ function buildSlides() {
 
 function startShow() {
   blobUrls = {}; locationCache = {};
-  front = 'a'; slideIdx = 0; playing = true;
+  front = 'a'; slideIdx = 0; playing = true; kbIdx = 0;
+  nowPlaying = false;
   var a = document.getElementById('slide-a');
   var b = document.getElementById('slide-b');
   a.style.opacity = '1'; a.style.zIndex = '2';
@@ -452,13 +477,18 @@ function startShow() {
   document.getElementById('play-btn').innerHTML = '&#9208;';
   document.getElementById('pill-date-0').classList.remove('visible');
   document.getElementById('pill-date-1').classList.remove('visible');
+  // Restore speed selector to saved value
+  var sel = document.getElementById('speed-select');
+  sel.value = String(cfg.speed || 6000);
+
   showScreen('show-screen');
   goTo(0);
   scheduleNext();
   showOverlay();
   setupGestures();
-  // Lock if PIN is set
-  if (cfg.pin) lockScreen();
+  acquireWakeLock();
+  // Lock and enter now-playing if PIN is set
+  if (cfg.pin) { enterNowPlaying(); lockScreen(); }
 }
 
 // Build a slide container's contents from item indices
@@ -490,6 +520,23 @@ function fillSlideContainer(el, indices) {
   });
 }
 
+function applyKenBurns(el) {
+  var dur = getDuration();
+  var anim = kbVariants[kbIdx % kbVariants.length];
+  kbIdx++;
+  var imgs = el.querySelectorAll('img');
+  for (var i = 0; i < imgs.length; i++) {
+    imgs[i].classList.remove('kb');
+    imgs[i].style.animationName = '';
+    imgs[i].style.animationDuration = '';
+    // Force reflow to restart animation
+    void imgs[i].offsetWidth;
+    imgs[i].classList.add('kb');
+    imgs[i].style.animationName = anim;
+    imgs[i].style.animationDuration = (dur / 1000) + 's';
+  }
+}
+
 function goTo(i) {
   slideIdx = ((i % slides.length) + slides.length) % slides.length;
   var slide   = slides[slideIdx];
@@ -497,28 +544,23 @@ function goTo(i) {
   var frontEl = document.getElementById('slide-' + front);
   var backEl  = document.getElementById('slide-' + back);
 
-  // Build structure in back container, then load images
   buildSlideContainer(backEl, slide.indices);
   fillSlideContainer(backEl, slide.indices).then(function() {
     frontEl.style.opacity = '0'; frontEl.style.zIndex = '1';
     backEl.style.opacity  = '1'; backEl.style.zIndex  = '2';
     front = back;
+    applyKenBurns(backEl);
   });
 
   document.getElementById('counter').textContent = (slideIdx + 1) + ' / ' + slides.length;
   startProgress();
 
-  // Fetch and display info for all photos in this slide
   var indices = slide.indices;
-  for (var k = 0; k < indices.length; k++) {
-    fetchInfo(indices[k]);
-  }
+  for (var k = 0; k < indices.length; k++) { fetchInfo(indices[k]); }
   updateInfo(indices);
-  // Prefetch next slide's blobs
+
   var nxt = slides[(slideIdx + 1) % slides.length];
-  for (var j = 0; j < nxt.indices.length; j++) {
-    getBlobUrl(nxt.indices[j]);
-  }
+  for (var j = 0; j < nxt.indices.length; j++) { getBlobUrl(nxt.indices[j]); }
 }
 
 function next() { clearTimeout(timer); goTo(slideIdx + 1); if (playing) scheduleNext(); }
@@ -531,13 +573,21 @@ function togglePlay() {
   else         { clearTimeout(timer); stopProgress(); }
 }
 
-function scheduleNext() { clearTimeout(timer); timer = setTimeout(next, DURATION); }
+function changeSpeed(val) {
+  cfg.speed = parseInt(val, 10);
+  saveCfg();
+  // Restart timer and progress at new speed
+  if (playing) { clearTimeout(timer); scheduleNext(); startProgress(); }
+}
+
+function scheduleNext() { clearTimeout(timer); timer = setTimeout(next, getDuration()); }
 
 function startProgress() {
+  var dur = getDuration();
   var bar = document.getElementById('progress');
   bar.style.transition = 'none'; bar.style.width = '0%';
-  bar.offsetWidth; // reflow
-  bar.style.transition = 'width ' + DURATION + 'ms linear'; bar.style.width = '100%';
+  bar.offsetWidth;
+  bar.style.transition = 'width ' + dur + 'ms linear'; bar.style.width = '100%';
 }
 
 function stopProgress() {
@@ -671,6 +721,40 @@ function fetchWithAuth(url) {
 }
 
 // ──────────────────────────────────────────
+// WAKE LOCK
+// ──────────────────────────────────────────
+
+function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  navigator.wakeLock.request('screen').then(function(sentinel) {
+    wakeLock = sentinel;
+  }).catch(function() {});
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release().catch(function() {}); wakeLock = null; }
+}
+
+// Re-acquire after tab becomes visible again (e.g. user switched apps)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && items.length > 0) acquireWakeLock();
+});
+
+// ──────────────────────────────────────────
+// NOW PLAYING MODE
+// ──────────────────────────────────────────
+
+function enterNowPlaying() {
+  nowPlaying = true;
+  document.getElementById('show-screen').classList.add('now-playing');
+}
+
+function exitNowPlaying() {
+  nowPlaying = false;
+  document.getElementById('show-screen').classList.remove('now-playing');
+}
+
+// ──────────────────────────────────────────
 // PIN LOCK
 // ──────────────────────────────────────────
 
@@ -712,6 +796,7 @@ function updateDots() {
 function checkPin() {
   if (pinEntry === cfg.pin) {
     locked = false;
+    exitNowPlaying();
     document.getElementById('lock-screen').classList.remove('active');
     pinEntry = '';
     updateDots();
@@ -780,7 +865,8 @@ function confirmPin() {
 
   cfg.pin = val; saveCfg();
   closePinModal();
-  // Immediately lock
+  // Enter now-playing mode and immediately lock
+  enterNowPlaying();
   lockScreen();
 }
 
@@ -824,11 +910,12 @@ function pickerFetch(method, path, body) {
 
 function reset() {
   clearTimeout(timer); clearTimeout(pollTimer); clearTimeout(hideTimer);
+  releaseWakeLock();
   for (var k in blobUrls) { if (blobUrls[k]) URL.revokeObjectURL(blobUrls[k]); }
-  cfg = { clientId: cfg.clientId, clientSecret: cfg.clientSecret, pin: cfg.pin };
+  cfg = { clientId: cfg.clientId, clientSecret: cfg.clientSecret, pin: cfg.pin, speed: cfg.speed };
   saveCfg();
   items = []; slides = []; blobUrls = {}; locationCache = {};
-  locked = false;
+  locked = false; exitNowPlaying();
   document.getElementById('lock-screen').classList.remove('active');
   document.getElementById('inp-id').value     = cfg.clientId     || '';
   document.getElementById('inp-secret').value = cfg.clientSecret || '';
@@ -886,8 +973,11 @@ window.addEventListener('load', function() {
   }
 
   if (cfg.accessToken && cfg.sessionId) {
+    // Auto-start: try to fetch items from the existing session directly
     showScreen('picker-screen');
-    pollForSelection(5000);
+    document.getElementById('picker-url-text').textContent = 'Resuming previous session…';
+    fetchPickedItems();
+    return;
   }
 });
 </script>
