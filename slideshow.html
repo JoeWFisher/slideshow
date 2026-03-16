@@ -22,7 +22,7 @@ h2 { font-size:11px; font-weight:500; color:var(--muted); text-transform:upperca
 .card p strong { color:#aaa; }
 .card p a { color:#6a9fd8; text-decoration:none; }
 
-.steps { list-style:none; counter-reset:s; display:flex; flex-direction:column; gap:0; }
+.steps { list-style:none; counter-reset:s; }
 .steps li { counter-increment:s; font-size:13px; color:#999; line-height:1.6; padding:10px 0 10px 30px; position:relative; border-bottom:1px solid var(--border); }
 .steps li:last-child { border-bottom:none; }
 .steps li::before { content:counter(s); position:absolute; left:0; top:11px; width:18px; height:18px; background:var(--border); border-radius:50%; font-size:11px; display:flex; align-items:center; justify-content:center; color:var(--muted); }
@@ -38,7 +38,7 @@ input::placeholder { color:#444; }
 .btn { width:100%; padding:13px; background:#fff; color:#000; border:none; border-radius:10px; font-family:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:opacity .15s; }
 .btn:active { opacity:.75; }
 .btn:disabled { opacity:.25; cursor:default; }
-.btn-ghost { background:transparent; border:1px solid var(--border); color:var(--muted); padding:10px 18px; border-radius:10px; font-family:inherit; font-size:13px; cursor:pointer; width:auto; transition:border-color .2s, color .2s; }
+.btn-ghost { background:transparent; border:1px solid var(--border); color:var(--muted); padding:10px 18px; border-radius:10px; font-family:inherit; font-size:13px; cursor:pointer; width:auto; }
 .btn-ghost:active { border-color:#555; color:var(--text); }
 
 .msg { font-size:13px; color:var(--muted); text-align:center; min-height:18px; }
@@ -47,63 +47,42 @@ input::placeholder { color:#444; }
 .spinner { width:28px; height:28px; border:2px solid var(--border); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-/* Highlight box */
-.callout { background:rgba(106,159,216,0.08); border:1px solid rgba(106,159,216,0.2); border-radius:12px; padding:16px; font-size:13px; color:#aaa; line-height:1.65; }
-.callout strong { color:#6a9fd8; }
-
 /* Slideshow */
 #show-screen { display:none; position:fixed; inset:0; background:#000; padding:0; gap:0; min-height:unset; }
 #show-screen.active { display:block; }
-
 .slide-img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transition:opacity .7s ease; }
 #img-a { opacity:1; z-index:2; }
 #img-b { opacity:0; z-index:1; }
-
 #overlay { position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; justify-content:space-between; opacity:0; transition:opacity .25s; pointer-events:none; }
 #overlay.visible { opacity:1; pointer-events:all; }
-
 #top-bar { padding:20px 24px; background:linear-gradient(rgba(0,0,0,.55),transparent); display:flex; justify-content:space-between; align-items:center; }
 #counter { font-size:13px; color:rgba(255,255,255,.4); }
-
-.show-btn { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff; border-radius:20px; padding:7px 16px; font-family:inherit; font-size:13px; cursor:pointer; transition:background .15s; }
+.show-btn { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff; border-radius:20px; padding:7px 16px; font-family:inherit; font-size:13px; cursor:pointer; }
 .show-btn:active { background:rgba(255,255,255,.2); }
-
 #bottom-bar { padding:20px 24px 40px; background:linear-gradient(transparent,rgba(0,0,0,.55)); display:flex; justify-content:center; align-items:center; gap:20px; }
-.ctrl { width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff; font-size:22px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; font-family:inherit; transition:background .15s; }
+.ctrl { width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff; font-size:22px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; font-family:inherit; }
 .ctrl:active { background:rgba(255,255,255,.25); }
 #play-btn { font-size:17px; }
-
 #location { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:6; background:rgba(0,0,0,.45); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:6px 14px; font-size:13px; color:rgba(255,255,255,.85); white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis; opacity:0; transition:opacity .4s; pointer-events:none; }
-
 #progress { position:absolute; bottom:0; left:0; height:2px; background:rgba(255,255,255,.35); z-index:5; width:0; }
 </style>
 </head>
 <body>
 
-<!-- 1. SETUP -->
+<!-- SCREEN 1: Setup -->
 <div class="screen active" id="setup-screen">
   <h1>Photo Slideshow</h1>
-
   <div class="card">
     <h2>One-time Google Cloud setup</h2>
     <ol class="steps">
       <li>Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → create or select a project</li>
-      <li><strong>APIs &amp; Services → Library</strong> → search for and enable <strong>Google Photos Picker API</strong></li>
-      <li><strong>APIs &amp; Services → OAuth consent screen</strong> → set up consent screen (External, add your email as test user)</li>
+      <li><strong>APIs &amp; Services → Library</strong> → enable <strong>Google Photos Picker API</strong></li>
+      <li><strong>APIs &amp; Services → OAuth consent screen</strong> → External → add your email as a test user</li>
       <li><strong>Credentials → Create Credentials → OAuth client ID</strong> → type: <strong>Web application</strong></li>
-      <li>Under <strong>Authorised redirect URIs</strong> add exactly:
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-          <code id="uri-display" style="word-break:break-all;"></code>
-          <span onclick="copyUri()" style="font-size:11px;color:#6a9fd8;cursor:pointer;white-space:nowrap;">Copy</span>
-        </div>
-        <div style="font-size:12px;color:#d06060;margin-top:6px;" id="file-warning" style="display:none;">
-          ⚠ This app must be served over HTTP — it won't work opened as a local file. See instructions below.
-        </div>
-      </li>
-      <li>Copy the <strong>Client ID</strong> below (no secret needed)</li>
+      <li>Under <strong>Authorised redirect URIs</strong> add: <code id="uri-display"></code> <span onclick="copyUri()" style="color:#6a9fd8;cursor:pointer;font-size:11px;">Copy</span></li>
+      <li>Copy your <strong>Client ID</strong> and <strong>Client Secret</strong> into the fields below</li>
     </ol>
   </div>
-
   <div class="card" style="display:flex;flex-direction:column;gap:14px;">
     <div class="field">
       <label>Client ID</label>
@@ -115,32 +94,10 @@ input::placeholder { color:#444; }
     </div>
     <button class="btn" onclick="startAuth()">Sign in with Google</button>
   </div>
-
   <div class="msg" id="setup-msg"></div>
 </div>
 
-<!-- 2. CODE PASTE — user pastes the redirect URL after sign-in -->
-<div class="screen" id="code-screen">
-  <h1>Almost there</h1>
-
-  <div class="card">
-    <p>A Google sign-in tab just opened. Sign in and approve access.</p>
-    <p>Your browser will then show a <strong>"This site can't be reached"</strong> page — that's expected. Copy the full URL from the address bar of that page. It will start with <strong>http://localhost/</strong></p>
-    <div class="callout" style="margin:4px 0 14px;">
-      <strong>Paste the full address bar URL below</strong> — it starts with <code style="font-size:11px;">http://localhost/?code=…</code>
-    </div>
-    <div class="field">
-      <label>Paste URL here</label>
-      <input id="inp-code" type="text" placeholder="http://localhost/?code=4/0A…" autocomplete="off" spellcheck="false">
-    </div>
-    <button class="btn" style="margin-top:12px;" onclick="handleRedirect()">Continue</button>
-  </div>
-
-  <button class="btn-ghost" onclick="reset()">← Back</button>
-  <div class="msg" id="code-msg"></div>
-</div>
-
-<!-- 3. PICKER — scan QR to pick photos -->
+<!-- SCREEN 2: Picker QR -->
 <div class="screen" id="picker-screen">
   <h1>Pick your photos</h1>
   <div class="card" style="text-align:center;">
@@ -157,7 +114,7 @@ input::placeholder { color:#444; }
   <button class="btn-ghost" onclick="reset()">Start over</button>
 </div>
 
-<!-- 4. SLIDESHOW -->
+<!-- SCREEN 3: Slideshow -->
 <div class="screen" id="show-screen">
   <img id="img-a" class="slide-img" alt="">
   <img id="img-b" class="slide-img" alt="">
@@ -173,204 +130,215 @@ input::placeholder { color:#444; }
       </div>
     </div>
     <div id="bottom-bar">
-      <button class="ctrl" onclick="prev()">‹</button>
-      <button class="ctrl" id="play-btn" onclick="togglePlay()">⏸</button>
-      <button class="ctrl" onclick="next()">›</button>
+      <button class="ctrl" onclick="prev()">&#8249;</button>
+      <button class="ctrl" id="play-btn" onclick="togglePlay()">&#9208;</button>
+      <button class="ctrl" onclick="next()">&#8250;</button>
     </div>
   </div>
 </div>
 
 <script>
-const PICKER_BASE  = 'https://photospicker.googleapis.com/v1';
-const SCOPE        = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
-// Redirect URI = wherever this page is hosted.
-// Works on http://localhost:8080, GitHub Pages, or any HTTPS host.
-// Make sure this exact URL is added as an Authorised Redirect URI in Google Cloud Console.
-const REDIRECT_URI = window.location.origin + window.location.pathname;
-const DURATION     = 6000;
-const QR           = url => `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+'use strict';
 
-// ── State ──
-let cfg = load();
-let items        = [];
-let blobUrls     = [];
-let idx          = 0;
-let playing      = true;
-let timer        = null;
-let hideTimer    = null;
-let pollTimer    = null;
-let front        = 'a';
-let locationCache = {};
+// ── Constants ──
+var PICKER_BASE = 'https://photospicker.googleapis.com/v1';
+var SCOPE       = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
+var DURATION    = 6000;
 
-// PKCE stored in sessionStorage (only needed during auth)
-let pkce = {};
+// Redirect URI = this page's URL. Must match exactly what's in Google Cloud Console.
+var REDIRECT_URI = window.location.origin + window.location.pathname;
 
-function load() { try { return JSON.parse(localStorage.getItem('ps2_cfg') || '{}'); } catch { return {}; } }
-function save() { localStorage.setItem('ps2_cfg', JSON.stringify(cfg)); }
+function qrUrl(url) {
+  return 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
+}
 
+// ── Persisted config ──
+var cfg = loadCfg();
+function loadCfg() {
+  try { return JSON.parse(localStorage.getItem('ps_cfg') || '{}'); } catch (e) { return {}; }
+}
+function saveCfg() {
+  localStorage.setItem('ps_cfg', JSON.stringify(cfg));
+}
+
+// ── Runtime state ──
+var items        = [];
+var blobUrls     = [];
+var idx          = 0;
+var playing      = true;
+var front        = 'a';
+var timer        = null;
+var hideTimer    = null;
+var pollTimer    = null;
+var locationCache = {};
+var gesturesReady = false;
+
+// ── Screen routing ──
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  var screens = document.querySelectorAll('.screen');
+  for (var i = 0; i < screens.length; i++) {
+    screens[i].classList.remove('active');
+  }
   document.getElementById(id).classList.add('active');
 }
 
-// ── STEP 1: Build PKCE + open auth URL ──
-async function startAuth() {
-  const clientId     = document.getElementById('inp-id').value.trim();
-  const clientSecret = document.getElementById('inp-secret').value.trim();
-  if (!clientId || !clientSecret) { setMsg('setup-msg', 'Please enter both Client ID and Client Secret', 'err'); return; }
-
-  cfg.clientId = clientId; cfg.clientSecret = clientSecret; save();
-  setMsg('setup-msg', '');
-
-  // Generate PKCE
-  const verifier  = generateVerifier();
-  const challenge = await generateChallenge(verifier);
-  sessionStorage.setItem('pkce_verifier', verifier);
-
-  // Build consent URL
-  const params = new URLSearchParams({
-    client_id:             clientId,
-    redirect_uri:          REDIRECT_URI,
-    response_type:         'code',
-    scope:                 SCOPE,
-    access_type:           'offline',
-    code_challenge:        challenge,
-    code_challenge_method: 'S256',
-    prompt:                'consent'
-  });
-
-  // Navigate current tab to Google auth — avoids popup blockers on tablet
-  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params;
-}
-
-// ── STEP 2: Extract code from pasted URL and exchange for token ──
-async function handleRedirect() {
-  const raw = document.getElementById('inp-code').value.trim();
-  let code;
-  try {
-    code = raw.startsWith('http') ? new URL(raw).searchParams.get('code') : raw;
-    if (!code) throw new Error();
-  } catch {
-    setMsg('code-msg', 'Could not read a code from that URL. Please copy the full address bar URL.', 'err');
+// ── STEP 1: Start OAuth (redirect current tab) ──
+function startAuth() {
+  var clientId     = document.getElementById('inp-id').value.trim();
+  var clientSecret = document.getElementById('inp-secret').value.trim();
+  if (!clientId || !clientSecret) {
+    setMsg('setup-msg', 'Please enter both Client ID and Client Secret', 'err');
     return;
   }
-  const verifier = sessionStorage.getItem('pkce_verifier');
-  if (!verifier) { setMsg('code-msg', 'Session expired. Please go back and try again.', 'err'); return; }
-  setMsg('code-msg', 'Signing in…');
-  document.querySelector('#code-screen .btn').disabled = true;
-  await exchangeCode(code, verifier);
-  document.querySelector('#code-screen .btn').disabled = false;
+  cfg.clientId     = clientId;
+  cfg.clientSecret = clientSecret;
+  saveCfg();
+  setMsg('setup-msg', '');
+
+  // Generate PKCE verifier + challenge
+  var verifier = generateVerifier();
+  sessionStorage.setItem('pkce_verifier', verifier);
+
+  generateChallenge(verifier).then(function(challenge) {
+    var params = new URLSearchParams();
+    params.set('client_id',             clientId);
+    params.set('redirect_uri',          REDIRECT_URI);
+    params.set('response_type',         'code');
+    params.set('scope',                 SCOPE);
+    params.set('access_type',           'offline');
+    params.set('code_challenge',        challenge);
+    params.set('code_challenge_method', 'S256');
+    params.set('prompt',                'consent');
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  });
 }
 
-async function exchangeCode(code, verifier) {
-  try {
-    const res = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     cfg.clientId,
-        client_secret: cfg.clientSecret,
-        redirect_uri:  REDIRECT_URI,
-        grant_type:    'authorization_code',
-        code,
-        code_verifier: verifier
-      })
-    });
-    const data = await res.json();
-    if (!data.access_token) throw new Error(data.error_description || data.error || 'Token exchange failed');
+// ── STEP 2: Exchange auth code for token ──
+function exchangeCode(code, verifier) {
+  var body = new URLSearchParams();
+  body.set('client_id',     cfg.clientId);
+  body.set('client_secret', cfg.clientSecret);
+  body.set('redirect_uri',  REDIRECT_URI);
+  body.set('grant_type',    'authorization_code');
+  body.set('code',          code);
+  body.set('code_verifier', verifier);
 
+  fetch('https://oauth2.googleapis.com/token', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    body.toString()
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (!data.access_token) {
+      throw new Error(data.error_description || data.error || 'Token exchange failed');
+    }
     cfg.accessToken  = data.access_token;
     cfg.refreshToken = data.refresh_token;
     delete cfg.sessionId;
-    save();
+    saveCfg();
     sessionStorage.removeItem('pkce_verifier');
     createPickerSession();
-  } catch (e) {
-    setMsg('code-msg', 'Error: ' + e.message, 'err');
-  }
+  })
+  .catch(function(e) {
+    setMsg('setup-msg', 'Sign-in error: ' + e.message, 'err');
+    showScreen('setup-screen');
+  });
 }
 
 // ── STEP 3: Create Picker session ──
-async function createPickerSession() {
-  try {
-    const res  = await pickerFetch('POST', '/sessions', {});
-    const data = await res.json();
+function createPickerSession() {
+  pickerFetch('POST', '/sessions', {})
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
     if (data.error) throw new Error(data.error.message);
-
-    cfg.sessionId = data.id; save();
-
-    const pickerUri = data.pickerUri;
-    document.getElementById('picker-qr').src             = QR(pickerUri);
-    document.getElementById('picker-url-text').textContent = pickerUri;
+    cfg.sessionId = data.id;
+    saveCfg();
+    document.getElementById('picker-qr').src              = qrUrl(data.pickerUri);
+    document.getElementById('picker-url-text').textContent = data.pickerUri;
     showScreen('picker-screen');
-
-    const interval = data.pollingConfig?.pollInterval
+    var interval = (data.pollingConfig && data.pollingConfig.pollInterval)
       ? parseFloat(data.pollingConfig.pollInterval) * 1000
       : 5000;
     pollForSelection(interval);
-
-  } catch (e) {
+  })
+  .catch(function(e) {
     setMsg('setup-msg', 'Session error: ' + e.message, 'err');
     showScreen('setup-screen');
-  }
+  });
 }
 
 // ── STEP 4: Poll until user picks photos ──
-async function pollForSelection(interval) {
+function pollForSelection(interval) {
   clearTimeout(pollTimer);
-  try {
-    const res  = await pickerFetch('GET', `/sessions/${cfg.sessionId}`);
-    const data = await res.json();
+  pickerFetch('GET', '/sessions/' + cfg.sessionId)
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
     if (data.error) throw new Error(data.error.message);
-
-    if (data.mediaItemsSet) { fetchPickedItems(); return; }
-
-    const next = data.pollingConfig?.pollInterval
+    if (data.mediaItemsSet) {
+      fetchPickedItems();
+      return;
+    }
+    var next = (data.pollingConfig && data.pollingConfig.pollInterval)
       ? parseFloat(data.pollingConfig.pollInterval) * 1000
       : interval;
-    pollTimer = setTimeout(() => pollForSelection(next), next);
-
-  } catch {
-    const ok = await refreshToken();
-    if (ok) pollTimer = setTimeout(() => pollForSelection(interval), 3000);
-    else { setMsg('setup-msg', 'Session expired. Please sign in again.', 'err'); showScreen('setup-screen'); }
-  }
+    pollTimer = setTimeout(function() { pollForSelection(next); }, next);
+  })
+  .catch(function() {
+    refreshToken().then(function(ok) {
+      if (ok) {
+        pollTimer = setTimeout(function() { pollForSelection(interval); }, 3000);
+      } else {
+        setMsg('setup-msg', 'Session expired. Please sign in again.', 'err');
+        showScreen('setup-screen');
+      }
+    });
+  });
 }
 
-// ── STEP 5: Load media items ──
-async function fetchPickedItems() {
-  try {
-    let all = [], pageToken = '';
-    do {
-      const qs  = `sessionId=${cfg.sessionId}&pageSize=100` + (pageToken ? `&pageToken=${pageToken}` : '');
-      const res = await pickerFetch('GET', `/mediaItems?${qs}`);
-      const data = await res.json();
+// ── STEP 5: Load picked media items ──
+function fetchPickedItems() {
+  var all = [];
+  function fetchPage(pageToken) {
+    var qs = 'sessionId=' + cfg.sessionId + '&pageSize=100';
+    if (pageToken) qs += '&pageToken=' + pageToken;
+    pickerFetch('GET', '/mediaItems?' + qs)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
       if (data.error) throw new Error(data.error.message);
-      all       = all.concat(data.mediaItems || []);
-      pageToken = data.nextPageToken || '';
-    } while (pageToken);
-
-    if (!all.length) throw new Error('No photos selected.');
-    items = all;
-    startShow();
-  } catch (e) {
-    setMsg('setup-msg', 'Error: ' + e.message, 'err');
-    showScreen('setup-screen');
+      all = all.concat(data.mediaItems || []);
+      if (data.nextPageToken) {
+        fetchPage(data.nextPageToken);
+      } else {
+        if (!all.length) throw new Error('No photos selected.');
+        items = all;
+        startShow();
+      }
+    })
+    .catch(function(e) {
+      setMsg('setup-msg', 'Error loading photos: ' + e.message, 'err');
+      showScreen('setup-screen');
+    });
   }
+  fetchPage('');
 }
 
 // ── Slideshow ──
 function startShow() {
-  blobUrls.forEach(u => u && URL.revokeObjectURL(u));
-  blobUrls = new Array(items.length).fill(null);
+  for (var i = 0; i < blobUrls.length; i++) {
+    if (blobUrls[i]) URL.revokeObjectURL(blobUrls[i]);
+  }
+  blobUrls      = new Array(items.length).fill(null);
   locationCache = {};
-  front = 'a'; idx = 0; playing = true;
+  front   = 'a';
+  idx     = 0;
+  playing = true;
 
-  const a = document.getElementById('img-a');
-  const b = document.getElementById('img-b');
+  var a = document.getElementById('img-a');
+  var b = document.getElementById('img-b');
   a.style.opacity = '1'; a.style.zIndex = '2';
   b.style.opacity = '0'; b.style.zIndex = '1';
-  document.getElementById('play-btn').textContent = '⏸';
+  document.getElementById('play-btn').innerHTML = '&#9208;';
   document.getElementById('location').style.opacity = '0';
 
   showScreen('show-screen');
@@ -380,244 +348,284 @@ function startShow() {
   setupGestures();
 }
 
-async function getBlobUrl(i) {
-  if (blobUrls[i]) return blobUrls[i];
-
-  const item = items[i];
-  // Picker API: mediaFile.baseUrl needs auth header + size param
-  const url = item.mediaFile.baseUrl + '=w2048-h2048';
-
-  const res = await fetch(url, {
-    headers: { 'Authorization': 'Bearer ' + cfg.accessToken }
+function getBlobUrl(i) {
+  if (blobUrls[i]) return Promise.resolve(blobUrls[i]);
+  var url = items[i].mediaFile.baseUrl + '=w2048-h2048';
+  return fetch(url, { headers: { 'Authorization': 'Bearer ' + cfg.accessToken } })
+  .then(function(res) {
+    if (res.status === 401) {
+      return refreshToken().then(function(ok) {
+        if (!ok) throw new Error('auth');
+        return fetch(url, { headers: { 'Authorization': 'Bearer ' + cfg.accessToken } });
+      });
+    }
+    return res;
+  })
+  .then(function(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.blob();
+  })
+  .then(function(blob) {
+    blobUrls[i] = URL.createObjectURL(blob);
+    return blobUrls[i];
   });
-
-  if (res.status === 401) {
-    const ok = await refreshToken();
-    if (!ok) throw new Error('auth');
-    return getBlobUrl(i); // retry once with new token
-  }
-
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-  const blob = await res.blob();
-  if (!blob.size) throw new Error('empty blob');
-
-  blobUrls[i] = URL.createObjectURL(blob);
-  return blobUrls[i];
 }
 
 function goTo(i) {
   idx = ((i % items.length) + items.length) % items.length;
 
-  const frontEl = document.getElementById('img-' + front);
-  const back    = front === 'a' ? 'b' : 'a';
-  const backEl  = document.getElementById('img-' + back);
-
-  // Show loading indicator on counter while image fetches
-  document.getElementById('counter').textContent = `${idx + 1} / ${items.length}`;
+  var frontEl = document.getElementById('img-' + front);
+  var back    = front === 'a' ? 'b' : 'a';
+  var backEl  = document.getElementById('img-' + back);
+  var capturedFront = front;
 
   getBlobUrl(idx)
-    .then(url => {
-      backEl.onload = () => {
-        frontEl.style.opacity = '0';
-        frontEl.style.zIndex  = '1';
-        backEl.style.opacity  = '1';
-        backEl.style.zIndex   = '2';
-        front = back;
-      };
-      backEl.src = url;
-    })
-    .catch(err => {
-      // Show error briefly on screen then skip to next
-      document.getElementById('counter').textContent = `⚠ Error loading photo ${idx + 1}: ${err.message}`;
-      console.error('Image load failed:', err, items[idx]);
-      setTimeout(() => next(), 3000);
-    });
+  .then(function(url) {
+    backEl.onload = function() {
+      frontEl.style.opacity = '0'; frontEl.style.zIndex = '1';
+      backEl.style.opacity  = '1'; backEl.style.zIndex  = '2';
+      front = back;
+    };
+    backEl.src = url;
+  })
+  .catch(function(err) {
+    document.getElementById('counter').textContent =
+      'Error loading photo ' + (idx + 1) + ': ' + err.message;
+    setTimeout(function() { next(); }, 3000);
+  });
 
-  const bar = document.getElementById('progress');
-  bar.style.transition = 'none'; bar.style.width = '0%';
-  void bar.offsetWidth;
-  bar.style.transition = `width ${DURATION}ms linear`; bar.style.width = '100%';
-
+  document.getElementById('counter').textContent = (idx + 1) + ' / ' + items.length;
+  startProgress();
   updateLocation(idx);
   fetchLocation(idx);
-  const nxt = (idx + 1) % items.length;
-  if (!blobUrls[nxt]) getBlobUrl(nxt).catch(() => {});
+
+  // Prefetch next
+  var nxt = (idx + 1) % items.length;
+  if (!blobUrls[nxt]) getBlobUrl(nxt).catch(function() {});
 }
 
-function next() { clearTimeout(timer); goTo(idx + 1); if (playing) scheduleNext(); }
-function prev() { clearTimeout(timer); goTo(idx - 1); if (playing) scheduleNext(); }
+function next() {
+  clearTimeout(timer);
+  goTo(idx + 1);
+  if (playing) scheduleNext();
+}
+
+function prev() {
+  clearTimeout(timer);
+  goTo(idx - 1);
+  if (playing) scheduleNext();
+}
 
 function togglePlay() {
   playing = !playing;
-  document.getElementById('play-btn').textContent = playing ? '⏸' : '▶';
-  const bar = document.getElementById('progress');
+  document.getElementById('play-btn').innerHTML = playing ? '&#9208;' : '&#9654;';
   if (playing) {
-    scheduleNext(); void bar.offsetWidth;
-    bar.style.transition = `width ${DURATION}ms linear`; bar.style.width = '100%';
+    scheduleNext();
+    startProgress();
   } else {
     clearTimeout(timer);
-    bar.style.transition = 'none'; bar.style.width = '0%';
+    stopProgress();
   }
 }
 
-function scheduleNext() { clearTimeout(timer); timer = setTimeout(next, DURATION); }
-
-function debugInfo() {
-  const item = items[idx];
-  const info = item ? JSON.stringify(item, null, 2) : 'No item';
-  alert(`Item ${idx}:\n${info}`);
+function scheduleNext() {
+  clearTimeout(timer);
+  timer = setTimeout(next, DURATION);
 }
 
-function pickAgain() { clearTimeout(timer); createPickerSession(); }
+function startProgress() {
+  var bar = document.getElementById('progress');
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  bar.offsetWidth; // force reflow
+  bar.style.transition = 'width ' + DURATION + 'ms linear';
+  bar.style.width = '100%';
+}
+
+function stopProgress() {
+  var bar = document.getElementById('progress');
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+}
+
+function pickAgain() {
+  clearTimeout(timer);
+  createPickerSession();
+}
+
+function debugInfo() {
+  var item = items[idx];
+  alert('Item ' + idx + ':\n' + (item ? JSON.stringify(item, null, 2) : 'none'));
+}
 
 // ── Overlay ──
 function showOverlay() {
   document.getElementById('overlay').classList.add('visible');
   clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => document.getElementById('overlay').classList.remove('visible'), 3000);
+  hideTimer = setTimeout(function() {
+    document.getElementById('overlay').classList.remove('visible');
+  }, 3000);
 }
 
-let gesturesReady = false;
-function setupGestures() {
-  if (gesturesReady) return; gesturesReady = true;
-  let tx = 0, ty = 0;
-  const el = document.getElementById('show-screen');
-  el.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive:true });
-  el.addEventListener('touchend',   e => {
-    const dx = e.changedTouches[0].clientX - tx;
-    const dy = e.changedTouches[0].clientY - ty;
-    Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40 ? (dx < 0 ? next() : prev()) : showOverlay();
-  }, { passive:true });
-}
 document.getElementById('show-screen').addEventListener('click', showOverlay);
 
-// ── Location ──
-async function fetchLocation(i) {
+function setupGestures() {
+  if (gesturesReady) return;
+  gesturesReady = true;
+  var tx = 0, ty = 0;
+  var el = document.getElementById('show-screen');
+  el.addEventListener('touchstart', function(e) {
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
+  }, { passive: true });
+  el.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - tx;
+    var dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      dx < 0 ? next() : prev();
+    } else {
+      showOverlay();
+    }
+  }, { passive: true });
+}
+
+// ── Location (date from API metadata) ──
+function fetchLocation(i) {
   if (locationCache[i] !== undefined) return;
   locationCache[i] = null;
-  const t = items[i]?.createTime;
-  if (t) locationCache[i] = new Date(t).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+  var t = items[i] && items[i].createTime;
+  if (t) {
+    locationCache[i] = new Date(t).toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
   if (i === idx) updateLocation(i);
 }
 
 function updateLocation(i) {
-  const el = document.getElementById('location');
-  const v  = locationCache[i];
-  el.textContent   = v ? '📅 ' + v : '';
+  var el = document.getElementById('location');
+  var v  = locationCache[i];
+  el.textContent   = v ? '\uD83D\uDCC5 ' + v : '';
   el.style.opacity = v ? '1' : '0';
 }
 
 // ── Token refresh ──
-async function refreshToken() {
-  if (!cfg.refreshToken) return false;
-  try {
-    const res  = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     cfg.clientId,
-        refresh_token: cfg.refreshToken,
-        grant_type:    'refresh_token'
-      })
-    });
-    const data = await res.json();
+function refreshToken() {
+  if (!cfg.refreshToken) return Promise.resolve(false);
+  var body = new URLSearchParams();
+  body.set('client_id',     cfg.clientId);
+  body.set('client_secret', cfg.clientSecret);
+  body.set('refresh_token', cfg.refreshToken);
+  body.set('grant_type',    'refresh_token');
+  return fetch('https://oauth2.googleapis.com/token', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    body.toString()
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
     if (!data.access_token) return false;
-    cfg.accessToken = data.access_token; save();
+    cfg.accessToken = data.access_token;
+    saveCfg();
     return true;
-  } catch { return false; }
+  })
+  .catch(function() { return false; });
 }
 
-// ── API helper ──
-async function pickerFetch(method, path, body) {
-  const opts = { method, headers: { 'Authorization': 'Bearer ' + cfg.accessToken, 'Content-Type': 'application/json' } };
+// ── Picker API fetch ──
+function pickerFetch(method, path, body) {
+  var opts = {
+    method:  method,
+    headers: {
+      'Authorization': 'Bearer ' + cfg.accessToken,
+      'Content-Type':  'application/json'
+    }
+  };
   if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(PICKER_BASE + path, opts);
-  if (res.status === 401) {
-    const ok = await refreshToken();
-    if (ok) { opts.headers['Authorization'] = 'Bearer ' + cfg.accessToken; return fetch(PICKER_BASE + path, opts); }
-  }
-  return res;
-}
-
-// ── Reset ──
-function reset() {
-  clearTimeout(timer); clearTimeout(pollTimer); clearTimeout(hideTimer);
-  blobUrls.forEach(u => u && URL.revokeObjectURL(u));
-  cfg = { clientId: cfg.clientId, clientSecret: cfg.clientSecret };
-  save(); items = []; blobUrls = []; locationCache = {};
-  if (cfg.clientId)     document.getElementById('inp-id').value     = cfg.clientId;
-  if (cfg.clientSecret) document.getElementById('inp-secret').value = cfg.clientSecret;
-  document.getElementById('inp-code').value = '';
-  showScreen('setup-screen');
-}
-
-function setMsg(id, msg, type = '') {
-  const el = document.getElementById(id);
-  if (el) { el.textContent = msg; el.className = 'msg ' + type; }
-}
-
-// ── PKCE helpers ──
-function generateVerifier() {
-  const arr = new Uint8Array(32);
-  crypto.getRandomValues(arr);
-  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
-
-async function generateChallenge(verifier) {
-  const data    = new TextEncoder().encode(verifier);
-  const digest  = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
-
-function copyUri() {
-  navigator.clipboard.writeText(REDIRECT_URI).then(() => {
-    const el = document.getElementById('uri-display');
-    const orig = el.nextElementSibling.textContent;
-    el.nextElementSibling.textContent = 'Copied!';
-    setTimeout(() => el.nextElementSibling.textContent = orig, 1500);
+  return fetch(PICKER_BASE + path, opts)
+  .then(function(res) {
+    if (res.status === 401) {
+      return refreshToken().then(function(ok) {
+        if (ok) {
+          opts.headers['Authorization'] = 'Bearer ' + cfg.accessToken;
+          return fetch(PICKER_BASE + path, opts);
+        }
+        return res;
+      });
+    }
+    return res;
   });
 }
 
-// ── Restore on load ──
-window.addEventListener('load', () => {
-  // Auto-detect OAuth redirect — Google appends ?code=... to the URL
-  const params = new URLSearchParams(window.location.search);
-  const code   = params.get('code');
-  if (code) {
-    // Clean the code from the URL bar without reloading
-    window.history.replaceState({}, '', window.location.pathname);
-    const verifier = sessionStorage.getItem('pkce_verifier');
-    if (verifier && cfg.clientId && cfg.clientSecret) {
-      showScreen('code-screen');
-      document.getElementById('inp-code').value = window.location.origin + window.location.pathname + '?code=' + code;
-      // Auto-exchange — no need for user to paste anything
-      exchangeCode(code, verifier);
-      return;
-    }
+// ── Reset / sign out ──
+function reset() {
+  clearTimeout(timer); clearTimeout(pollTimer); clearTimeout(hideTimer);
+  for (var i = 0; i < blobUrls.length; i++) {
+    if (blobUrls[i]) URL.revokeObjectURL(blobUrls[i]);
   }
+  cfg = { clientId: cfg.clientId, clientSecret: cfg.clientSecret };
+  saveCfg();
+  items = []; blobUrls = []; locationCache = {};
+  document.getElementById('inp-id').value     = cfg.clientId     || '';
+  document.getElementById('inp-secret').value = cfg.clientSecret || '';
+  showScreen('setup-screen');
+}
 
-  // Show the current redirect URI so user knows exactly what to register
-  const uriEl = document.getElementById('uri-display');
+// ── PKCE ──
+function generateVerifier() {
+  var arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode.apply(null, arr))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function generateChallenge(verifier) {
+  var data = new TextEncoder().encode(verifier);
+  return crypto.subtle.digest('SHA-256', data).then(function(digest) {
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  });
+}
+
+function copyUri() {
+  var el = document.getElementById('uri-display');
+  navigator.clipboard.writeText(REDIRECT_URI).then(function() {
+    var span = el.nextElementSibling;
+    span.textContent = 'Copied!';
+    setTimeout(function() { span.textContent = 'Copy'; }, 1500);
+  });
+}
+
+function setMsg(id, msg, type) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'msg' + (type ? ' ' + type : '');
+}
+
+// ── Init ──
+window.addEventListener('load', function() {
+  // Show current redirect URI in setup instructions
+  var uriEl = document.getElementById('uri-display');
   if (uriEl) uriEl.textContent = REDIRECT_URI;
 
-  // Warn if opened as a file:// — images won't load due to CORS
-  const isFile = location.protocol === 'file:';
-  const hostingCard = document.getElementById('hosting-card');
-  const fileWarning = document.getElementById('file-warning');
-  if (isFile) {
-    if (hostingCard) hostingCard.style.display = 'block';
-    if (fileWarning) fileWarning.style.display = 'block';
-  }
-
+  // Restore saved credentials
   if (cfg.clientId)     document.getElementById('inp-id').value     = cfg.clientId;
   if (cfg.clientSecret) document.getElementById('inp-secret').value = cfg.clientSecret;
 
-  if (cfg.accessToken && cfg.sessionId) {
-    showScreen('picker-screen');
-    pollForSelection(5000);
+  // Check if Google just redirected back with ?code=
+  var params   = new URLSearchParams(window.location.search);
+  var code     = params.get('code');
+  var verifier = sessionStorage.getItem('pkce_verifier');
+
+  if (code && verifier && cfg.clientId && cfg.clientSecret) {
+    // Remove code from URL bar
+    window.history.replaceState({}, '', window.location.pathname);
+    exchangeCode(code, verifier);
+    return;
   }
-});
+
+  // Resume a session that was already polling
   if (cfg.accessToken && cfg.sessionId) {
     showScreen('picker-screen');
     pollForSelection(5000);
